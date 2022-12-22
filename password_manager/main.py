@@ -5,6 +5,7 @@ from PIL import ImageTk, Image
 import random
 from random import choice, randint, shuffle
 import pyperclip
+import json
 
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
@@ -45,6 +46,12 @@ def save():
     data_email_username = email_username_entry.get()
     data_password = password_entry.get()
 
+    new_data = {
+        data_website: {
+            "email/username": data_email_username,
+            "password": data_password,
+        }
+    }
     if ((len(data_website) == 0
          or len(data_email_username) == 0
          or len(data_password) == 0)):
@@ -56,10 +63,49 @@ def save():
                                                f"Email/Username: {data_email_username} \n "
                                                f"Password: {data_password}")
         if is_ok:
-            with open("data.txt", "a") as data_file:
-                data_file.write(f"{data_website} |  {data_email_username}  |  {data_password} \n")
+            try:
+                with open("data.json", "r") as data_file:
+                    # Reading old data
+                    data = json.load(data_file)
+            except FileNotFoundError:
+                with open("data.json", "w") as data_file:
+                    json.dump(new_data, data_file, indent=4)
+
+            else:
+                # Updating old data with new data
+                data.update(new_data)
+
+                with open("data.json", "w") as data_file:
+                    # Saving updated data
+                    json.dump(data, data_file, indent=4)
+            finally:
                 website_entry.delete(0, END)
                 password_entry.delete(0, END)
+                data_file.close()
+
+
+def find_password():
+    data_website = website_entry.get()
+    try:
+        with open("data.json", "r") as data_file:
+            data = json.load(data_file)
+    except FileNotFoundError:
+        messagebox.showerror(title="Oops", message="No Data File Found")
+    else:
+        if data_website in data:
+            password = data[data_website]["password"]
+            username_email = data[data_website]["email/username"]
+            option = messagebox.askyesno(title=data_website, message=f"Email/Username: {username_email}\n"
+                                                                     f"password: {password}\n "
+                                                                     "Do you want to copy the password?")
+            if option == "Yes":
+                pyperclip.copy(password)
+                messagebox.showinfo(title=None, message="Copy Successfully")
+
+        else:
+            messagebox.showerror(title="Oops", message="No details for the website exists")
+    finally:
+        data_file.close()
 
 
 # ---------------------------- UI SETUP ------------------------------- #
@@ -100,6 +146,9 @@ password_entry.grid(row=3, column=1, sticky=W)
 
 # BUTTONS
 
+# BUTTON SEARCH
+search_button = Button(text="Search", command=find_password)
+search_button.grid(row=1, column=2)
 # BUTTON PASSWORD
 generate_password_button = Button(text="Generate Password", command=generate_password)
 generate_password_button.grid(row=3, column=2)
